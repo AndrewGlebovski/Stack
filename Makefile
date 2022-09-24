@@ -23,5 +23,5 @@ run: $(BIN_DIR)/main.o
 
 
 # Компилирует все файлы в папке src в папку bin
-$(BIN_DIR)/%.o: $(SRC_DIR)/%.cpp
+$(BIN_DIR)/%.o: $(SRC_DIR)/%.cpp $(SRC_DIR)/stack.hpp
 	$(COMPILER) $(FLAGS) -c $< -o $@
