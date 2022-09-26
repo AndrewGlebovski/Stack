@@ -1,13 +1,74 @@
 #include <stdlib.h>
 
+
+/**
+ * \brief This assert throw errors to stderr
+ * \param [in] condition Condition to check
+ * \param [in] error This error code will be printed if condition fails
+ * \param [in] msg This message will be printed if condition fails
+ * \param [in] action This code will be executed if condition fails
+*/
+#define ASSERT(condition, error, msg, action) \
+do { \
+    if (!(condition)) { \
+        fprintf(stderr, "%s in function %s in line %d\n[%.3d] %s\n\n", __FILE__, __PRETTY_FUNCTION__, __LINE__, error, msg); \
+        action; \
+    } \
+} while(0)
+
+
+/**
+ * \brief Do some action in case of error
+ * \param [in] condition Condition to check
+ * \param [in] action This code will be executed if condition fails
+*/
+#define CHECK(condition, action) \
+do { \
+    if (!(condition)) \
+        action; \
+} while(0)
+
+
+/**
+ * \brief Prints stack
+ * \param [in] stack Stack to print
+*/
+#define STACK_DUMP(stack) \
+do { \
+    if (!(condition)) { \
+        fprintf(stderr, "%s at %s(%d)", __PRETTY_FUNCTION__, __FILE__, __LINE__); \
+        stack_dump(stack); \
+    } \
+} while(0)
+
+
+/**
+ * \brief Prints stack
+ * \param [in] stack Stack to print
+*/
+#define STACK_CHECK(stack) \
+do { \
+    if (!(condition)) { \
+        fprintf(stderr, "%s at %s(%d)", __PRETTY_FUNCTION__, __FILE__, __LINE__); \
+        stack_dump(stack); \
+    } \
+} while(0)
+
+
+#define HAS_ERROR(bitflag, error) (bitflag & error)
+
+
 #define POISON_VALUE 0xC0FFEE
+#define MAX_CAPACITY_VALUE 100000
+#define OBJECT_TO_STR "%i"
 
 
 const float STACK_FACTOR = 2.0;
 
 
 typedef int Object;
-typedef size_t StackSize;
+typedef long long StackSize;
+typedef unsigned int ErrorBits;
 
 
 typedef struct Stack
@@ -18,31 +79,51 @@ typedef struct Stack
 } Stack;
 
 
-enum EXIT_CODE {
-    OK = 0,
-    ERROR = 1
+enum ERROR_BIT_FLAGS {
+    STACK_OK         =   0, ///< Stack is ok
+    NULL_DATA        =   1, ///< Stack data points to NULL
+    INVALID_SIZE     =   2, ///< Size is larger than capacity or negative
+    INVALID_CAPACITY =   4, ///< Capacity is larger than type's maximum or negative
+    UNEXP_POISON_VAL =   8, ///< Unexpected poison value before size
+    UNEXP_NORMAL_VAL =  16, ///< Unexpected normal value after size
+    INVALID_ARGUMENT =  32, ///< Invalid argument given to the function
+    EMPTY_STACK      =  64, ///< No elements to pop
+    ALLOCATE_FAIL    = 128, ///< Memory allocate return NULL
 };
 
 
-EXIT_CODE stack_constructor(Stack *stack, StackSize capacity);
+ErrorBits stack_constructor(Stack *stack, StackSize capacity);
 
 
-EXIT_CODE stack_resize(Stack *stack, StackSize capacity);
+ErrorBits stack_resize(Stack *stack, StackSize capacity);
 
 
-EXIT_CODE stack_push(Stack *stack, Object object);
+ErrorBits stack_push(Stack *stack, Object object);
 
 
-EXIT_CODE stack_pop(Stack *stack, Object *object);
+ErrorBits stack_pop(Stack *stack, Object *object);
 
 
-EXIT_CODE stack_destructor(Stack *stack);
+ErrorBits stack_destructor(Stack *stack);
+
+
+ErrorBits stack_check(Stack *stack);
+
+
+void stack_dump(Stack *stack);
+
+
+void print_errors(ErrorBits error);
+
+
+void print_binary(ErrorBits n);
 
 
 
 
-EXIT_CODE stack_constructor(Stack *stack, StackSize capacity) {
+ErrorBits stack_constructor(Stack *stack, StackSize capacity) {
     stack -> data = (Object *) calloc(capacity, sizeof(Object));
+    CHECK(stack -> data, return ERROR_BIT_FLAGS::ALLOCATE_FAIL);
 
     for(StackSize i = 0; i < capacity ; i++)
         (stack -> data)[i] = POISON_VALUE;
@@ -50,51 +131,119 @@ EXIT_CODE stack_constructor(Stack *stack, StackSize capacity) {
     stack -> capacity = capacity;
     stack -> size = 0;
 
-    return OK;
+    return ERROR_BIT_FLAGS::STACK_OK;
 }
 
 
-EXIT_CODE stack_resize(Stack *stack, StackSize capacity) {
+ErrorBits stack_resize(Stack *stack, StackSize capacity) {
+    ErrorBits error = stack_check(stack);
+
+    if (error) return error;
+
     stack -> data = (Object *) realloc(stack -> data, capacity * sizeof(Object));
+    CHECK(stack -> data, return ERROR_BIT_FLAGS::ALLOCATE_FAIL);
 
     for(StackSize i = stack -> capacity; i < capacity ; i++)
         (stack -> data)[i] = POISON_VALUE;
     
     stack -> capacity = capacity;
 
-    return OK;
+    return error;
 }
 
 
-EXIT_CODE stack_push(Stack *stack, Object object) {
+ErrorBits stack_push(Stack *stack, Object object) {
+    ErrorBits error = stack_check(stack);
+
+    if (error) return error;
+
     if ((stack -> size) + 1 > stack -> capacity)
-        stack_resize(stack, (StackSize) ((float)(stack -> capacity) * STACK_FACTOR));
+        error = stack_resize(stack, (StackSize) ((float)(stack -> capacity) * STACK_FACTOR));
+
+    if (error) return error;
 
     (stack -> data)[(stack -> size)++] = object;
 
-    return OK;
+    return error;
 }
 
 
-EXIT_CODE stack_pop(Stack *stack, Object *object) {
-    if (stack -> size == 0) return ERROR;
+ErrorBits stack_pop(Stack *stack, Object *object) {
+    ErrorBits error = stack_check(stack);
+
+    if (error) return error;
+    if (stack -> size == 0) return ERROR_BIT_FLAGS::EMPTY_STACK;
 
     *object = (stack -> data)[--(stack -> size)];
     (stack -> data)[(stack -> size)] = POISON_VALUE;
 
     if (((stack -> size) < (StackSize) ((float)(stack -> capacity) / (2 * STACK_FACTOR))) && stack -> size > 10)
-        stack_resize(stack, (StackSize) ((float)(stack -> capacity) / STACK_FACTOR));
+        error = stack_resize(stack, (StackSize) ((float)(stack -> capacity) / STACK_FACTOR));
 
-    return OK;
+    return error;
 }
 
 
-EXIT_CODE stack_destructor(Stack *stack) {
+ErrorBits stack_destructor(Stack *stack) {
+    ErrorBits error = stack_check(stack);
+
+    if (error) return error;
+
     free(stack -> data);
     stack -> data = NULL;
     
     stack -> capacity = 0;
     stack -> size = 0;
 
-    return OK;
+    return error;
+}
+
+
+ErrorBits stack_check(Stack *stack) {
+    ErrorBits error = ERROR_BIT_FLAGS::STACK_OK;
+
+    CHECK(stack, return ERROR_BIT_FLAGS::INVALID_ARGUMENT);
+
+    CHECK(stack -> capacity >= 0 && stack -> capacity <= MAX_CAPACITY_VALUE, error += ERROR_BIT_FLAGS::INVALID_CAPACITY);
+
+    CHECK(stack -> size >= 0 && stack -> size <= stack -> capacity, error += ERROR_BIT_FLAGS::INVALID_SIZE);
+
+    CHECK(stack -> data, error += ERROR_BIT_FLAGS::NULL_DATA; return error);
+
+    CHECK(!error, return error);
+
+    for(StackSize i = 0; i < stack -> capacity; i++) {
+        CHECK((stack -> data)[i] == POISON_VALUE && i < stack -> size, error += ERROR_BIT_FLAGS::UNEXP_POISON_VAL; i = stack -> size - 1);
+        CHECK((stack -> data)[i] != POISON_VALUE && i >= stack -> size, error += ERROR_BIT_FLAGS::UNEXP_NORMAL_VAL; break);
+    }
+    
+    return error;
+}
+
+
+void print_errors(ErrorBits error) {
+    putchar('[');
+    print_binary(error);
+    putchar(']');
+    putchar('\n');
+
+    if (error == ERROR_BIT_FLAGS::STACK_OK) {
+        printf("Stack is ok\n");
+        return;
+    }
+
+    if (HAS_ERROR(error, ERROR_BIT_FLAGS::INVALID_SIZE))     printf("Invalid size\n");
+    if (HAS_ERROR(error, ERROR_BIT_FLAGS::INVALID_CAPACITY)) printf("Invalid capcity\n");
+    if (HAS_ERROR(error, ERROR_BIT_FLAGS::NULL_DATA))        printf("Stack has NULL data\n");
+    if (HAS_ERROR(error, ERROR_BIT_FLAGS::UNEXP_NORMAL_VAL)) printf("Unexpected normal value\n");
+    if (HAS_ERROR(error, ERROR_BIT_FLAGS::UNEXP_POISON_VAL)) printf("Unexpected poison value\n");
+}
+
+
+void print_binary(ErrorBits n) {
+    int k = 1 << 7;
+    while(k > 0) {
+        putchar(((n & k) > 0) + '0');
+        k = k >> 1;
+    }
 }

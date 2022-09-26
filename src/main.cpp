@@ -16,6 +16,13 @@ int main() {
         printf("%i ", value);
     }
 
+    stack.size = -1;
+    stack.capacity = -1;
+
+    putchar('\n');
+
+    print_errors(stack_check(&stack));
+
     stack_destructor(&stack);
 
     return 0;
