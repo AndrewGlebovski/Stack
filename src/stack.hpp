@@ -60,6 +60,7 @@ do { \
 
 
 #define POISON_VALUE 0xC0FFEE
+#define CANARY_VALUE 0xBADC0FFEE
 #define MAX_CAPACITY_VALUE 100000
 #define OBJECT_TO_STR "%i"
 
@@ -70,13 +71,15 @@ const float STACK_FACTOR = 2.0;
 typedef int Object;
 typedef long long StackSize;
 typedef unsigned int ErrorBits;
+typedef unsigned long long CanaryType;
 
 
-typedef struct Stack
-{
+typedef struct {
+    CanaryType canary_begin = CANARY_VALUE;
     Object *data = NULL;
     StackSize size = 0;
     StackSize capacity = 0;
+    CanaryType canary_end = CANARY_VALUE;
 } Stack;
 
 
@@ -90,6 +93,7 @@ enum ERROR_BIT_FLAGS {
     INVALID_ARGUMENT =  32, ///< Invalid argument given to the function
     EMPTY_STACK      =  64, ///< No elements to pop
     ALLOCATE_FAIL    = 128, ///< Memory allocate return NULL
+    CANARY_ERROR     = 256  ///< Wrong canary value detected
 };
 
 
@@ -123,8 +127,13 @@ void print_binary(ErrorBits n);
 
 
 ErrorBits stack_constructor(Stack *stack, StackSize capacity) {
-    stack -> data = (Object *) calloc(capacity, sizeof(Object));
-    CHECK(stack -> data, return ERROR_BIT_FLAGS::ALLOCATE_FAIL);
+    char *true_pointer = (char *) calloc(capacity * sizeof(Object) + 2 * sizeof(CanaryType), 1);
+    CHECK(true_pointer, return ERROR_BIT_FLAGS::ALLOCATE_FAIL);
+
+    *(CanaryType *)(true_pointer) = CANARY_VALUE;
+    *(CanaryType *)(true_pointer + sizeof(CanaryType) + capacity * sizeof(Object)) = CANARY_VALUE;
+
+    stack -> data = (Object *)(true_pointer + sizeof(CanaryType));
 
     for(StackSize i = 0; i < capacity ; i++)
         (stack -> data)[i] = POISON_VALUE;
@@ -141,8 +150,13 @@ ErrorBits stack_resize(Stack *stack, StackSize capacity) {
 
     if (error) return error;
 
-    stack -> data = (Object *) realloc(stack -> data, capacity * sizeof(Object));
-    CHECK(stack -> data, return ERROR_BIT_FLAGS::ALLOCATE_FAIL);
+    char *true_pointer = ((char *)(stack -> data)) - sizeof(CanaryType);
+    true_pointer = (char *) realloc(true_pointer, capacity * sizeof(Object) + 2 * sizeof(CanaryType));
+    CHECK(true_pointer, return ERROR_BIT_FLAGS::ALLOCATE_FAIL);
+
+    *(CanaryType *)(true_pointer + sizeof(CanaryType) + capacity * sizeof(Object)) = CANARY_VALUE;
+
+    stack -> data = (Object *)(true_pointer + sizeof(CanaryType));
 
     for(StackSize i = stack -> capacity; i < capacity ; i++)
         (stack -> data)[i] = POISON_VALUE;
@@ -207,11 +221,20 @@ ErrorBits stack_check(Stack *stack) {
 
     CHECK(stack, return ERROR_BIT_FLAGS::INVALID_ARGUMENT);
 
+    // printf("%lld %lld\n", stack -> canary_begin, stack ->canary_end);
+
+    CHECK(stack -> canary_begin == CANARY_VALUE && stack -> canary_end == CANARY_VALUE, return ERROR_BIT_FLAGS::CANARY_ERROR);
+
+    char *true_pointer = ((char *)(stack -> data)) - sizeof(CanaryType); // pointer to the real buffer start
+
+    CHECK(*(CanaryType *)(true_pointer) == CANARY_VALUE, return ERROR_BIT_FLAGS::CANARY_ERROR);
+    CHECK(*(CanaryType *)(true_pointer + sizeof(CanaryType) + stack -> capacity * sizeof(Object)) == CANARY_VALUE, return ERROR_BIT_FLAGS::CANARY_ERROR);
+
     CHECK(stack -> capacity >= 0 && stack -> capacity <= MAX_CAPACITY_VALUE, error += ERROR_BIT_FLAGS::INVALID_CAPACITY);
 
     CHECK(stack -> size >= 0 && stack -> size <= stack -> capacity, error += ERROR_BIT_FLAGS::INVALID_SIZE);
 
-    CHECK(stack -> data, error += ERROR_BIT_FLAGS::NULL_DATA; putchar('t'); return error);
+    CHECK(stack -> data, error += ERROR_BIT_FLAGS::NULL_DATA; return error);
 
     if (HAS_ERROR(error, ERROR_BIT_FLAGS::INVALID_SIZE) || HAS_ERROR(error, ERROR_BIT_FLAGS::INVALID_CAPACITY))
         return error;
@@ -236,7 +259,7 @@ void stack_dump(Stack *stack, ErrorBits error) {
 
     printf("Capacity: %lld\nSize: %lld \nData[%p]:\n", stack -> capacity, stack -> size, stack -> data);
     
-    if (HAS_ERROR(error, ERROR_BIT_FLAGS::NULL_DATA) || HAS_ERROR(error, ERROR_BIT_FLAGS::INVALID_CAPACITY)) return;
+    if (HAS_ERROR(error, ERROR_BIT_FLAGS::NULL_DATA) || HAS_ERROR(error, ERROR_BIT_FLAGS::INVALID_CAPACITY) || HAS_ERROR(error, ERROR_BIT_FLAGS::NULL_DATA)) return;
 
     for(StackSize i = 0; i < stack -> capacity; i++) {
         printf("    [%lld]", i); // object index
@@ -247,17 +270,20 @@ void stack_dump(Stack *stack, ErrorBits error) {
         
         putchar('\n'); // new line
     }
+
+    putchar('\n');
 }
 
 
 void print_errors(ErrorBits error) {
-    printf("Error bit flag: ");
-    print_binary(error);
-    putchar('\n');
-
     if (error == ERROR_BIT_FLAGS::STACK_OK) {
-        printf("Stack is ok\n");
+        printf("Ok\n");
         return;
+    }
+    else {
+        printf("Error ");
+        print_binary(error);
+        putchar('\n');
     }
 
     if (HAS_ERROR(error, ERROR_BIT_FLAGS::INVALID_SIZE))     printf("Invalid size\n");
@@ -265,11 +291,15 @@ void print_errors(ErrorBits error) {
     if (HAS_ERROR(error, ERROR_BIT_FLAGS::NULL_DATA))        printf("Stack has NULL data\n");
     if (HAS_ERROR(error, ERROR_BIT_FLAGS::UNEXP_NORMAL_VAL)) printf("Unexpected normal value\n");
     if (HAS_ERROR(error, ERROR_BIT_FLAGS::UNEXP_POISON_VAL)) printf("Unexpected poison value\n");
+    if (HAS_ERROR(error, ERROR_BIT_FLAGS::CANARY_ERROR))     printf("Wrong canary value\n");
+    if (HAS_ERROR(error, ERROR_BIT_FLAGS::EMPTY_STACK))      printf("Pop empty stack\n");
+    if (HAS_ERROR(error, ERROR_BIT_FLAGS::INVALID_ARGUMENT)) printf("Invalid argument given to the function\n");
+    if (HAS_ERROR(error, ERROR_BIT_FLAGS::ALLOCATE_FAIL))    printf("Failed to allocate memory\n");
 }
 
 
 void print_binary(ErrorBits n) {
-    int k = 1 << 7;
+    int k = 1 << 15;
     while(k > 0) {
         putchar(((n & k) > 0) + '0');
         k = k >> 1;

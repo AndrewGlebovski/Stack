@@ -9,13 +9,11 @@ int main() {
 
     for(int i = 1; i <= 11; i++)
         stack_push(&stack, i);
-    
+
     for(int i = 1; i <= 8; i++) {
         Object value = 0;
         stack_pop(&stack, &value);
     }
-
-    //stack_dump(&stack, stack_resize(&stack, 10));
 
     stack_dump(&stack, stack_check(&stack));
 
