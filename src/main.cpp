@@ -10,18 +10,14 @@ int main() {
     for(int i = 1; i <= 11; i++)
         stack_push(&stack, i);
     
-    for(int i = 0; i < 20; i++) {
-        Object value = POISON_VALUE;
+    for(int i = 1; i <= 8; i++) {
+        Object value = 0;
         stack_pop(&stack, &value);
-        printf("%i ", value);
     }
 
-    stack.size = -1;
-    stack.capacity = -1;
+    //stack_dump(&stack, stack_resize(&stack, 10));
 
-    putchar('\n');
-
-    print_errors(stack_check(&stack));
+    stack_dump(&stack, stack_check(&stack));
 
     stack_destructor(&stack);
 
