@@ -2,20 +2,19 @@
 
 
 #define POISON_VALUE 0xC0FFEE
-#define CANARY_VALUE 0xBADC0FFEE
 #define MAX_CAPACITY_VALUE 100000
 #define OBJECT_TO_STR "%i"
 
 
 typedef int Object;
 typedef long long StackSize;
-typedef unsigned int ErrorBits;
+typedef unsigned long long ErrorBits;
 typedef unsigned long long CanaryType;
 typedef unsigned long long HashType;
 
 
 typedef struct {
-    CanaryType canary_begin = CANARY_VALUE;
+    CanaryType canary_begin = 0;
 
     Object *data = NULL;
     StackSize size = 0;
@@ -24,7 +23,7 @@ typedef struct {
     HashType struct_hash = 0;
     HashType buffer_hash = 0;
 
-    CanaryType canary_end = CANARY_VALUE;
+    CanaryType canary_end = 0;
 } Stack;
 
 

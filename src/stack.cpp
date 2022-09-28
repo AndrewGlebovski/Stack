@@ -68,8 +68,8 @@ ErrorBits stack_constructor(Stack *stack, StackSize capacity) {
     char *true_pointer = (char *) calloc(capacity * sizeof(Object) + 2 * sizeof(CanaryType), 1);
     CHECK(true_pointer, return ERROR_BIT_FLAGS::ALLOCATE_FAIL);
 
-    *(CanaryType *)(true_pointer) = CANARY_VALUE;
-    *(CanaryType *)(true_pointer + sizeof(CanaryType) + capacity * sizeof(Object)) = CANARY_VALUE;
+    *(CanaryType *)(true_pointer) = (CanaryType)(stack);
+    *(CanaryType *)(true_pointer + sizeof(CanaryType) + capacity * sizeof(Object)) = (CanaryType)(stack);
 
     stack -> data = (Object *)(true_pointer + sizeof(CanaryType));
 
@@ -79,10 +79,10 @@ ErrorBits stack_constructor(Stack *stack, StackSize capacity) {
     stack -> capacity = capacity;
     stack -> size = 0;
 
-    set_hash(stack);
+    stack -> canary_begin = (CanaryType)(stack);
+    stack -> canary_end = (CanaryType)(stack);
 
-    stack -> canary_begin = CANARY_VALUE;
-    stack -> canary_end = CANARY_VALUE;
+    set_hash(stack);
 
     return ERROR_BIT_FLAGS::STACK_OK;
 }
@@ -99,7 +99,7 @@ ErrorBits stack_resize(Stack *stack, StackSize capacity) {
     true_pointer = (char *) realloc(true_pointer, capacity * sizeof(Object) + 2 * sizeof(CanaryType));
     CHECK(true_pointer, return ERROR_BIT_FLAGS::ALLOCATE_FAIL);
 
-    *(CanaryType *)(true_pointer + sizeof(CanaryType) + capacity * sizeof(Object)) = CANARY_VALUE;
+    *(CanaryType *)(true_pointer + sizeof(CanaryType) + capacity * sizeof(Object)) = (CanaryType)(stack);
 
     stack -> data = (Object *)(true_pointer + sizeof(CanaryType));
 
@@ -173,14 +173,14 @@ ErrorBits stack_check(Stack *stack) {
 
     CHECK(stack, return ERROR_BIT_FLAGS::INVALID_ARGUMENT);
 
-    CHECK(stack -> canary_begin == CANARY_VALUE && stack -> canary_end == CANARY_VALUE, return ERROR_BIT_FLAGS::STRUCT_CANARY);
+    CHECK(stack -> canary_begin == (CanaryType)(stack) && stack -> canary_end == (CanaryType)(stack), return ERROR_BIT_FLAGS::STRUCT_CANARY);
 
     CHECK(!check_struct_hash(stack), return ERROR_BIT_FLAGS::STRUCT_HASH_FAIL);
 
     char *true_pointer = ((char *)(stack -> data)) - sizeof(CanaryType); // pointer to the real buffer start
 
-    CHECK(*(CanaryType *)(true_pointer) == CANARY_VALUE,                                                           return ERROR_BIT_FLAGS::BUFFER_CANARY);
-    CHECK(*(CanaryType *)(true_pointer + sizeof(CanaryType) + stack -> capacity * sizeof(Object)) == CANARY_VALUE, return ERROR_BIT_FLAGS::BUFFER_CANARY);
+    CHECK(*(CanaryType *)(true_pointer) == (CanaryType)(stack),                                                           return ERROR_BIT_FLAGS::BUFFER_CANARY);
+    CHECK(*(CanaryType *)(true_pointer + sizeof(CanaryType) + stack -> capacity * sizeof(Object)) == (CanaryType)(stack), return ERROR_BIT_FLAGS::BUFFER_CANARY);
 
     CHECK(stack -> capacity >= 0 && stack -> capacity <= MAX_CAPACITY_VALUE, error += ERROR_BIT_FLAGS::INVALID_CAPACITY);
 
@@ -221,7 +221,7 @@ void stack_dump(Stack *stack, ErrorBits error) {
     for(StackSize i = 0; i < stack -> capacity; i++) {
         printf("    [%lld]", i); // object index
 
-        printf("%d", (stack -> data)[i]); // print value function (possible macros)
+        printf(OBJECT_TO_STR, (stack -> data)[i]); // print value function (possible macros)
 
         if ((stack -> data)[i] == POISON_VALUE) printf("(POISON VALUE)"); // poison value warning
         
@@ -259,7 +259,7 @@ void print_errors(ErrorBits error) {
 
 
 void print_binary(ErrorBits n) {
-    int k = 1 << 15;
+    int k = 1ull << 15;
     while(k > 0) {
         putchar(((n & k) > 0) + '0');
         k = k >> 1;
