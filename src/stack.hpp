@@ -2,6 +2,28 @@
 #define MAX_CAPACITY_VALUE 100000
 #define OBJECT_TO_STR "%i"
 
+#define CANARY_PROTECT 1
+#define HASH_PROTECT 2
+
+
+#ifndef PROTECT_LEVEL
+    #define PROTECT_LEVEL (CANARY_PROTECT + HASH_PROTECT)
+#endif
+
+
+#if (PROTECT_LEVEL & CANARY_PROTECT)
+    #define ON_CANARY_PROTECT(...) __VA_ARGS__
+#else
+    #define ON_CANARY_PROTECT(...) 
+#endif
+
+
+#if (PROTECT_LEVEL & HASH_PROTECT)
+    #define ON_HASH_PROTECT(...) __VA_ARGS__
+#else
+    #define ON_HASH_PROTECT(...) 
+#endif
+
 
 typedef int Object;
 typedef long long StackSize;
@@ -11,16 +33,16 @@ typedef unsigned long long HashType;
 
 
 typedef struct {
-    CanaryType canary_begin = 0;
+    ON_CANARY_PROTECT(CanaryType canary_begin = 0;)
 
     Object *data = NULL;
     StackSize size = 0;
     StackSize capacity = 0;
 
-    HashType struct_hash = 0;
-    HashType buffer_hash = 0;
+    ON_HASH_PROTECT(HashType struct_hash = 0;)
+    ON_HASH_PROTECT(HashType buffer_hash = 0;)
 
-    CanaryType canary_end = 0;
+    ON_CANARY_PROTECT(CanaryType canary_end = 0;)
 } Stack;
 
 

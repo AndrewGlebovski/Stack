@@ -69,8 +69,8 @@ ErrorBits stack_constructor(Stack *stack, StackSize capacity) {
     char *true_pointer = (char *) calloc(capacity * sizeof(Object) + 2 * sizeof(CanaryType), 1);
     CHECK(true_pointer, return ERROR_BIT_FLAGS::ALLOCATE_FAIL);
 
-    *(CanaryType *)(true_pointer) = (CanaryType)(stack);
-    *(CanaryType *)(true_pointer + sizeof(CanaryType) + capacity * sizeof(Object)) = (CanaryType)(stack);
+    ON_CANARY_PROTECT(*(CanaryType *)(true_pointer) = (CanaryType)(stack);)
+    ON_CANARY_PROTECT(*(CanaryType *)(true_pointer + sizeof(CanaryType) + capacity * sizeof(Object)) = (CanaryType)(stack);)
 
     stack -> data = (Object *)(true_pointer + sizeof(CanaryType));
 
@@ -80,10 +80,10 @@ ErrorBits stack_constructor(Stack *stack, StackSize capacity) {
     stack -> capacity = capacity;
     stack -> size = 0;
 
-    stack -> canary_begin = (CanaryType)(stack);
-    stack -> canary_end = (CanaryType)(stack);
+    ON_CANARY_PROTECT(stack -> canary_begin = (CanaryType)(stack);)
+    ON_CANARY_PROTECT(stack -> canary_end = (CanaryType)(stack);)
 
-    set_hash(stack);
+    ON_HASH_PROTECT(set_hash(stack);)
 
     return ERROR_BIT_FLAGS::STACK_OK;
 }
@@ -108,7 +108,7 @@ ErrorBits stack_resize(Stack *stack, StackSize capacity) {
     
     stack -> capacity = capacity;
 
-    set_hash(stack);
+    ON_HASH_PROTECT(set_hash(stack);)
 
     return ERROR_BIT_FLAGS::STACK_OK;
 }
@@ -126,7 +126,7 @@ ErrorBits stack_push(Stack *stack, Object object) {
 
     (stack -> data)[(stack -> size)++] = object;
 
-    set_hash(stack);
+    ON_HASH_PROTECT(set_hash(stack);)
 
     return ERROR_BIT_FLAGS::STACK_OK;
 }
@@ -143,7 +143,7 @@ ErrorBits stack_pop(Stack *stack, Object *object) {
     *object = (stack -> data)[--(stack -> size)];
     (stack -> data)[(stack -> size)] = POISON_VALUE;
 
-    set_hash(stack);
+    ON_HASH_PROTECT(set_hash(stack);)
 
     if (((stack -> size) < ((stack -> capacity) / (StackSize)(2 * STACK_FACTOR))) && stack -> capacity > 10)
         return stack_resize(stack, (stack -> capacity) / (StackSize)(STACK_FACTOR));
@@ -170,14 +170,14 @@ ErrorBits stack_check(Stack *stack) {
 
     CHECK(stack, return ERROR_BIT_FLAGS::INVALID_ARGUMENT);
 
-    CHECK(stack -> canary_begin == (CanaryType)(stack) && stack -> canary_end == (CanaryType)(stack), return ERROR_BIT_FLAGS::STRUCT_CANARY);
+    ON_CANARY_PROTECT(CHECK(stack -> canary_begin == (CanaryType)(stack) && stack -> canary_end == (CanaryType)(stack), return ERROR_BIT_FLAGS::STRUCT_CANARY);)
 
-    CHECK(!check_struct_hash(stack), return ERROR_BIT_FLAGS::STRUCT_HASH_FAIL);
+    ON_HASH_PROTECT(CHECK(!check_struct_hash(stack), return ERROR_BIT_FLAGS::STRUCT_HASH_FAIL);)
 
     char *true_pointer = ((char *)(stack -> data)) - sizeof(CanaryType); // pointer to the real buffer start
 
-    CHECK(*(CanaryType *)(true_pointer) == (CanaryType)(stack),                                                           return ERROR_BIT_FLAGS::BUFFER_CANARY);
-    CHECK(*(CanaryType *)(true_pointer + sizeof(CanaryType) + stack -> capacity * sizeof(Object)) == (CanaryType)(stack), return ERROR_BIT_FLAGS::BUFFER_CANARY);
+    ON_CANARY_PROTECT(CHECK(*(CanaryType *)(true_pointer) == (CanaryType)(stack),                                                           return ERROR_BIT_FLAGS::BUFFER_CANARY);)
+    ON_CANARY_PROTECT(CHECK(*(CanaryType *)(true_pointer + sizeof(CanaryType) + stack -> capacity * sizeof(Object)) == (CanaryType)(stack), return ERROR_BIT_FLAGS::BUFFER_CANARY);)
 
     CHECK(stack -> capacity >= 0 && stack -> capacity <= MAX_CAPACITY_VALUE, error += ERROR_BIT_FLAGS::INVALID_CAPACITY);
 
@@ -185,7 +185,7 @@ ErrorBits stack_check(Stack *stack) {
 
     CHECK(stack -> data, error += ERROR_BIT_FLAGS::NULL_DATA; return error);
 
-    CHECK(gnu_hash(stack -> data, stack -> size * sizeof(Object)) == stack -> buffer_hash, error += ERROR_BIT_FLAGS::BUFFER_HASH_FAIL);
+    ON_HASH_PROTECT(CHECK(gnu_hash(stack -> data, stack -> size * sizeof(Object)) == stack -> buffer_hash, error += ERROR_BIT_FLAGS::BUFFER_HASH_FAIL);)
 
     if (HAS_ERROR(error, ERROR_BIT_FLAGS::INVALID_SIZE) || HAS_ERROR(error, ERROR_BIT_FLAGS::INVALID_CAPACITY) || HAS_ERROR(error, ERROR_BIT_FLAGS::STRUCT_HASH_FAIL))
         return error;
