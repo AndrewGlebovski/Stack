@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include "stack.hpp"
 
 
@@ -18,25 +19,25 @@ do { \
 /**
  * \brief Prints stack
  * \param [in] stack Stack to print
+ * \param [in] error Stack error
 */
-#define STACK_DUMP(stack) \
+#define STACK_DUMP(stack, error) \
 do { \
-    if (!(condition)) { \
-        fprintf(stderr, "%s at %s(%d)", __PRETTY_FUNCTION__, __FILE__, __LINE__); \
-        stack_dump(stack); \
-    } \
+    printf("%s at %s(%d)\n", __PRETTY_FUNCTION__, __FILE__, __LINE__); \
+    stack_dump(stack, error); \
 } while(0)
 
 
 /**
- * \brief Prints stack
- * \param [in] stack Stack to print
+ * \brief If stack is invalid calls stack dump then return error
+ * \param [in] stack Stack to check
 */
-#define STACK_CHECK(stack) \
+#define RETURN_ON_ERROR(stack) \
 do { \
-    if (!(condition)) { \
-        fprintf(stderr, "%s at %s(%d)", __PRETTY_FUNCTION__, __FILE__, __LINE__); \
-        stack_dump(stack); \
+    ErrorBits error = stack_check(stack); \
+    if (error) { \
+        STACK_DUMP(stack, error); \
+        return error; \
     } \
 } while(0)
 
@@ -92,8 +93,7 @@ ErrorBits stack_resize(Stack *stack, StackSize capacity) {
     CHECK(stack, return ERROR_BIT_FLAGS::INVALID_ARGUMENT);
     CHECK(capacity >= 10, return ERROR_BIT_FLAGS::INVALID_ARGUMENT);
 
-    ErrorBits error = stack_check(stack);
-    CHECK(!error, return error);
+    RETURN_ON_ERROR(stack);
 
     char *true_pointer = ((char *)(stack -> data)) - sizeof(CanaryType);
     true_pointer = (char *) realloc(true_pointer, capacity * sizeof(Object) + 2 * sizeof(CanaryType));
@@ -110,26 +110,25 @@ ErrorBits stack_resize(Stack *stack, StackSize capacity) {
 
     set_hash(stack);
 
-    return error;
+    return ERROR_BIT_FLAGS::STACK_OK;
 }
 
 
 ErrorBits stack_push(Stack *stack, Object object) {
     CHECK(stack, return ERROR_BIT_FLAGS::INVALID_ARGUMENT);
 
-    ErrorBits error = stack_check(stack);
-    CHECK(!error, return error);
+    RETURN_ON_ERROR(stack);
 
-    if ((stack -> size) + 1 > stack -> capacity)
-        error = stack_resize(stack, (StackSize) ((float)(stack -> capacity) * STACK_FACTOR));
-
-    CHECK(!error, return error);
+    if ((stack -> size) + 1 > stack -> capacity) {
+        ErrorBits error = stack_resize(stack, (StackSize) ((float)(stack -> capacity) * STACK_FACTOR));
+        CHECK(!error, return error);
+    }
 
     (stack -> data)[(stack -> size)++] = object;
 
     set_hash(stack);
 
-    return error;
+    return ERROR_BIT_FLAGS::STACK_OK;
 }
 
 
@@ -137,8 +136,7 @@ ErrorBits stack_pop(Stack *stack, Object *object) {
     CHECK(stack, return ERROR_BIT_FLAGS::INVALID_ARGUMENT);
     CHECK(object, return ERROR_BIT_FLAGS::INVALID_ARGUMENT);
 
-    ErrorBits error = stack_check(stack);
-    CHECK(!error, return error);
+    RETURN_ON_ERROR(stack);
 
     CHECK(stack -> size, return ERROR_BIT_FLAGS::EMPTY_STACK);
 
@@ -148,15 +146,14 @@ ErrorBits stack_pop(Stack *stack, Object *object) {
     set_hash(stack);
 
     if (((stack -> size) < ((stack -> capacity) / (StackSize)(2 * STACK_FACTOR))) && stack -> capacity > 10)
-        error = stack_resize(stack, (stack -> capacity) / (StackSize)(STACK_FACTOR));
+        return stack_resize(stack, (stack -> capacity) / (StackSize)(STACK_FACTOR));
 
-    return error;
+    return ERROR_BIT_FLAGS::STACK_OK;
 }
 
 
 ErrorBits stack_destructor(Stack *stack) {
-    ErrorBits error = stack_check(stack);
-    CHECK(!error, return error);
+    RETURN_ON_ERROR(stack);
 
     free(stack -> data);
     stack -> data = NULL;
@@ -211,21 +208,24 @@ void stack_dump(Stack *stack, ErrorBits error) {
 
     print_errors(error);
 
-    printf("Capacity: %llu\nSize: %llu\nBuffer hash: %llu\nStruct hash: %llu\nData[%p]:\n", 
+    printf("Capacity: %llu\nSize: %llu\nBuffer hash: %llu\nStruct hash: %llu\nData[%p]", 
             stack -> capacity, stack -> size, stack -> buffer_hash, stack -> struct_hash, stack -> data);
     
     if (HAS_ERROR(error, ERROR_BIT_FLAGS::NULL_DATA) || HAS_ERROR(error, ERROR_BIT_FLAGS::INVALID_CAPACITY) 
-            || HAS_ERROR(error, ERROR_BIT_FLAGS::STRUCT_HASH_FAIL) || HAS_ERROR(error, ERROR_BIT_FLAGS::STRUCT_CANARY)) 
-        return;
+            || HAS_ERROR(error, ERROR_BIT_FLAGS::STRUCT_HASH_FAIL) || HAS_ERROR(error, ERROR_BIT_FLAGS::STRUCT_CANARY))
+        putchar('\n');
+    else {
+        printf(":\n");
 
-    for(StackSize i = 0; i < stack -> capacity; i++) {
-        printf("    [%lld]", i); // object index
+        for(StackSize i = 0; i < stack -> capacity; i++) {
+            printf("    [%lld]", i); // object index
 
-        printf(OBJECT_TO_STR, (stack -> data)[i]); // print value function (possible macros)
+            printf(OBJECT_TO_STR, (stack -> data)[i]); // print value function (possible macros)
 
-        if ((stack -> data)[i] == POISON_VALUE) printf("(POISON VALUE)"); // poison value warning
-        
-        putchar('\n'); // new line
+            if ((stack -> data)[i] == POISON_VALUE) printf("(POISON VALUE)"); // poison value warning
+            
+            putchar('\n'); // new line
+        }
     }
 
     putchar('\n');

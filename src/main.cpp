@@ -15,7 +15,8 @@ int main() {
         stack_pop(&stack, &value);
     }
 
-    stack_dump(&stack, stack_check(&stack));
+    stack.capacity = 20;
+    stack_push(&stack, 5);
 
     stack_destructor(&stack);
 

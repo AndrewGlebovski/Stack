@@ -1,6 +1,3 @@
-#include <stdlib.h>
-
-
 #define POISON_VALUE 0xC0FFEE
 #define MAX_CAPACITY_VALUE 100000
 #define OBJECT_TO_STR "%i"
