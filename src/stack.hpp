@@ -25,13 +25,14 @@
 #endif
 
 
-typedef int Object;
-typedef long long StackSize;
-typedef unsigned long long ErrorBits;
-typedef unsigned long long CanaryType;
-typedef unsigned long long HashType;
+typedef int Object; ///< Stack object type
+typedef long long StackSize; ///< Type for stack size and capacity
+typedef unsigned long long ErrorBits; ///< Type for holding error codes
+typedef unsigned long long CanaryType; ///< Type for holding canary value
+typedef unsigned long long HashType; ///< Type for holding hash sum
 
 
+/// Structure for holding stack
 typedef struct {
     ON_CANARY_PROTECT(CanaryType canary_begin = 0;)
 
@@ -46,6 +47,7 @@ typedef struct {
 } Stack;
 
 
+/// Error bit codes
 enum ERROR_BIT_FLAGS {
     STACK_OK         =    0, ///< Stack is ok
     NULL_DATA        =    1, ///< Stack data points to NULL
@@ -63,22 +65,63 @@ enum ERROR_BIT_FLAGS {
 };
 
 
+/**
+ * \brief Constructs the stack
+ * \param stack This stack will be filled
+ * \param capacity New stack capacity
+ * \note Free stack before contsructor to prevent memory leak
+ * \return Error code (see #ERROR_BIT_FLAGS)
+*/
 ErrorBits stack_constructor(Stack *stack, StackSize capacity);
 
 
+/**
+ * \brief Adds object to stack
+ * \param stack This stack will be pushed
+ * \param object This object will be added to the end of stack
+ * \note Stack will try resize to hold all the objects
+ * \return Error code (see #ERROR_BIT_FLAGS)
+*/
 ErrorBits stack_push(Stack *stack, Object object);
 
 
+/**
+ * \brief Pops last object from stack
+ * \param stack This stack will be popped
+ * \param object Value of popped object will be written to this pointer
+ * \note Stack will try resize if hold too few objects for its size
+ * \return Error code (see #ERROR_BIT_FLAGS)
+*/
 ErrorBits stack_pop(Stack *stack, Object *object);
 
 
+/**
+ * \brief Destructs the stack
+ * \param stack This stack will be destructed
+ * \note Stack won't be free in case of verification error so get ready for memory leak
+ * \return Error code (see #ERROR_BIT_FLAGS)
+*/
 ErrorBits stack_destructor(Stack *stack);
 
 
+/**
+ * \brief Stack verificator
+ * \param stack Stack to check
+ * \return Error code (see #ERROR_BIT_FLAGS)
+*/
 ErrorBits stack_check(Stack *stack);
 
 
+/**
+ * \brief Prints stack content
+ * \param stack This stack will printed
+ * \param error This error code will be printed
+*/
 void stack_dump(Stack *stack, ErrorBits error);
 
 
+/**
+ * \brief Translate bit error code to english
+ * \param error Bit error code to print
+*/
 void print_errors(ErrorBits error);

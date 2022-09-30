@@ -4,7 +4,7 @@
 
 
 /**
- * \brief Do some action in case of error
+ * \brief Does some action in case of error
  * \param [in] condition Condition to check
  * \param [in] action This code will be executed if condition fails
 */
@@ -17,9 +17,9 @@ do { \
 
 
 /**
- * \brief Prints stack
+ * \brief Prints stack's content
  * \param [in] stack Stack to print
- * \param [in] error Stack error
+ * \param [in] error This error code will printed (see #ERROR_BIT_FLAGS and print_errors())
 */
 #define STACK_DUMP(stack, error) \
 do { \
@@ -29,7 +29,7 @@ do { \
 
 
 /**
- * \brief If stack is invalid calls stack dump then return error
+ * \brief If stack is invalid calls stack dump then returns an error code
  * \param [in] stack Stack to check
 */
 #define RETURN_ON_ERROR(stack) \
@@ -42,24 +42,51 @@ do { \
 } while(0)
 
 
+/// Checks for specific error in error code (see #ERROR_BIT_FLAGS and #ErrorBits type)
 #define HAS_ERROR(bitflag, error) (bitflag & error)
 
 
+/// Multiplier for stack size
 const float STACK_FACTOR = 2.0;
 
 
+/**
+ * \brief Resizes stack
+ * \param stack This stack will be resized
+ * \param capacity New stack capacity
+ * \note Capacity can't be less than 10
+ * \return Error code (see #ERROR_BIT_FLAGS)
+*/
 static ErrorBits stack_resize(Stack *stack, StackSize capacity);
 
 
+/**
+ * \brief Recursive function to print each bit of the number
+ * \param n This number will be printed
+*/
 static void print_binary(ErrorBits n);
 
 
+/**
+ * \brief Recalculates hash sum for current stack
+ * \param stack This stack's hash sum will be updated
+*/
 static void set_hash(Stack *stack);
 
 
+/**
+ * \brief Check hash sum of stack structure
+ * \param stack This stack's hash sum will be checked
+*/
 static ErrorBits check_struct_hash(Stack *stack);
 
 
+/**
+ * \brief Calculates hash sum for object
+ * \param ptr Pointer to object
+ * \param size Object's size
+ * \return Hash sum
+*/
 static HashType gnu_hash(void *ptr, size_t size);
 
 
@@ -155,11 +182,13 @@ ErrorBits stack_pop(Stack *stack, Object *object) {
 ErrorBits stack_destructor(Stack *stack) {
     RETURN_ON_ERROR(stack);
 
-    free(stack -> data);
+    free((char *)(stack -> data) - sizeof(CanaryType));
     stack -> data = NULL;
     
     stack -> capacity = 0;
     stack -> size = 0;
+
+    ON_HASH_PROTECT(set_hash(stack);)
 
     return ERROR_BIT_FLAGS::STACK_OK;
 }
@@ -176,14 +205,14 @@ ErrorBits stack_check(Stack *stack) {
 
     char *true_pointer = ((char *)(stack -> data)) - sizeof(CanaryType); // pointer to the real buffer start
 
+    CHECK(stack -> data, error += ERROR_BIT_FLAGS::NULL_DATA; return error);
+
     ON_CANARY_PROTECT(CHECK(*(CanaryType *)(true_pointer) == (CanaryType)(stack),                                                           return ERROR_BIT_FLAGS::BUFFER_CANARY);)
     ON_CANARY_PROTECT(CHECK(*(CanaryType *)(true_pointer + sizeof(CanaryType) + stack -> capacity * sizeof(Object)) == (CanaryType)(stack), return ERROR_BIT_FLAGS::BUFFER_CANARY);)
 
     CHECK(stack -> capacity >= 0 && stack -> capacity <= MAX_CAPACITY_VALUE, error += ERROR_BIT_FLAGS::INVALID_CAPACITY);
 
     CHECK(stack -> size >= 0 && stack -> size <= stack -> capacity, error += ERROR_BIT_FLAGS::INVALID_SIZE);
-
-    CHECK(stack -> data, error += ERROR_BIT_FLAGS::NULL_DATA; return error);
 
     ON_HASH_PROTECT(CHECK(gnu_hash(stack -> data, stack -> size * sizeof(Object)) == stack -> buffer_hash, error += ERROR_BIT_FLAGS::BUFFER_HASH_FAIL);)
 
