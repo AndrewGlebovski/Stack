@@ -48,19 +48,19 @@ do { \
 const float STACK_FACTOR = 2.0;
 
 
-ErrorBits stack_resize(Stack *stack, StackSize capacity);
+static ErrorBits stack_resize(Stack *stack, StackSize capacity);
 
 
-void print_binary(ErrorBits n);
+static void print_binary(ErrorBits n);
 
 
-void set_hash(Stack *stack);
+static void set_hash(Stack *stack);
 
 
-ErrorBits check_struct_hash(Stack *stack);
+static ErrorBits check_struct_hash(Stack *stack);
 
 
-HashType gnu_hash(void *ptr, size_t size);
+static HashType gnu_hash(void *ptr, size_t size);
 
 
 
@@ -89,7 +89,7 @@ ErrorBits stack_constructor(Stack *stack, StackSize capacity) {
 }
 
 
-ErrorBits stack_resize(Stack *stack, StackSize capacity) {
+static ErrorBits stack_resize(Stack *stack, StackSize capacity) {
     CHECK(stack, return ERROR_BIT_FLAGS::INVALID_ARGUMENT);
     CHECK(capacity >= 10, return ERROR_BIT_FLAGS::INVALID_ARGUMENT);
 
@@ -258,7 +258,7 @@ void print_errors(ErrorBits error) {
 }
 
 
-void print_binary(ErrorBits n) {
+static void print_binary(ErrorBits n) {
     int k = 1ull << 15;
     while(k > 0) {
         putchar(((n & k) > 0) + '0');
@@ -267,7 +267,7 @@ void print_binary(ErrorBits n) {
 }
 
 
-ErrorBits check_struct_hash(Stack *stack) {
+static ErrorBits check_struct_hash(Stack *stack) {
     CHECK(stack, return ERROR_BIT_FLAGS::INVALID_ARGUMENT);
 
     ErrorBits error = ERROR_BIT_FLAGS::STACK_OK;
@@ -286,7 +286,7 @@ ErrorBits check_struct_hash(Stack *stack) {
 }
 
 
-void set_hash(Stack *stack) {
+static void set_hash(Stack *stack) {
     CHECK(stack, return);
 
     stack -> struct_hash = 0;
@@ -297,7 +297,7 @@ void set_hash(Stack *stack) {
 }
 
 
-HashType gnu_hash(void *ptr, size_t size) {
+static HashType gnu_hash(void *ptr, size_t size) {
     HashType hash = 5381;
 
     for(size_t i = 0; i < size; i++)

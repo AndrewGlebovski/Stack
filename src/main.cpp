@@ -15,6 +15,7 @@ int main() {
         stack_pop(&stack, &value);
     }
 
+    stack.capacity = 50000000000;
     stack_push(&stack, 5);
 
     stack_destructor(&stack);
