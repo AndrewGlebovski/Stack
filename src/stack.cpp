@@ -3,6 +3,22 @@
 #include "stack.hpp"
 
 
+const char *ERROR_DESCRIPTION[] = {
+    "Invalid size\n",
+    "Invalid capcity\n",
+    "Stack has NULL data\n",
+    "Unexpected normal value\n",
+    "Unexpected poison value\n",
+    "Wrong struct canary\n",
+    "Wrong buffer canary\n",
+    "Pop empty stack\n",
+    "Invalid argument given to the function\n",
+    "Failed to allocate memory\n",
+    "Wrong buffer hash\n",
+    "Wrong struct hash\n",
+};
+
+
 /**
  * \brief Does some action in case of error
  * \param [in] condition Condition to check
@@ -66,6 +82,7 @@ static ErrorBits stack_resize(Stack *stack, StackSize capacity);
 */
 static void print_binary(ErrorBits n);
 
+#if (PROTECT_LEVEL & HASH_PROTECT)
 
 /**
  * \brief Recalculates hash sum for current stack
@@ -88,6 +105,8 @@ static ErrorBits check_struct_hash(Stack *stack);
  * \return Hash sum
 */
 static HashType gnu_hash(void *ptr, size_t size);
+
+#endif
 
 
 
@@ -233,12 +252,13 @@ ErrorBits stack_check(Stack *stack) {
 void stack_dump(Stack *stack, ErrorBits error) {
     CHECK(stack, return);
     
-    printf("Stack[%p]:\n", stack);
+    printf("\tStack[%p]:\n", stack);
 
     print_errors(error);
 
-    printf("Capacity: %llu\nSize: %llu\nBuffer hash: %llu\nStruct hash: %llu\nData[%p]", 
-            stack -> capacity, stack -> size, stack -> buffer_hash, stack -> struct_hash, stack -> data);
+    printf("\tCapacity: %llu\n\tSize: %llu\n", stack -> capacity, stack -> size);
+    ON_HASH_PROTECT(printf("\tBuffer hash: %llu\n\tStruct hash: %llu\n", stack -> buffer_hash, stack -> struct_hash);)
+    printf("\tData[%p]", stack -> data);
     
     if (HAS_ERROR(error, ERROR_BIT_FLAGS::NULL_DATA) || HAS_ERROR(error, ERROR_BIT_FLAGS::INVALID_CAPACITY) 
             || HAS_ERROR(error, ERROR_BIT_FLAGS::STRUCT_HASH_FAIL) || HAS_ERROR(error, ERROR_BIT_FLAGS::STRUCT_CANARY))
@@ -247,7 +267,7 @@ void stack_dump(Stack *stack, ErrorBits error) {
         printf(":\n");
 
         for(StackSize i = 0; i < stack -> capacity; i++) {
-            printf("    [%lld]", i); // object index
+            printf("\t\t[%lld]", i); // object index
 
             printf(OBJECT_TO_STR, (stack -> data)[i]); // print value function (possible macros)
 
@@ -263,27 +283,19 @@ void stack_dump(Stack *stack, ErrorBits error) {
 
 void print_errors(ErrorBits error) {
     if (error == ERROR_BIT_FLAGS::STACK_OK) {
-        printf("Ok\n");
+        printf("\tOk\n");
         return;
     }
     else {
-        printf("Error ");
+        putchar('\t');
         print_binary(error);
         putchar('\n');
     }
 
-    if (HAS_ERROR(error, ERROR_BIT_FLAGS::INVALID_SIZE))     printf("Invalid size\n");
-    if (HAS_ERROR(error, ERROR_BIT_FLAGS::INVALID_CAPACITY)) printf("Invalid capcity\n");
-    if (HAS_ERROR(error, ERROR_BIT_FLAGS::NULL_DATA))        printf("Stack has NULL data\n");
-    if (HAS_ERROR(error, ERROR_BIT_FLAGS::UNEXP_NORMAL_VAL)) printf("Unexpected normal value\n");
-    if (HAS_ERROR(error, ERROR_BIT_FLAGS::UNEXP_POISON_VAL)) printf("Unexpected poison value\n");
-    if (HAS_ERROR(error, ERROR_BIT_FLAGS::STRUCT_CANARY))    printf("Wrong struct canary\n");
-    if (HAS_ERROR(error, ERROR_BIT_FLAGS::BUFFER_CANARY))    printf("Wrong buffer canary\n");
-    if (HAS_ERROR(error, ERROR_BIT_FLAGS::EMPTY_STACK))      printf("Pop empty stack\n");
-    if (HAS_ERROR(error, ERROR_BIT_FLAGS::INVALID_ARGUMENT)) printf("Invalid argument given to the function\n");
-    if (HAS_ERROR(error, ERROR_BIT_FLAGS::ALLOCATE_FAIL))    printf("Failed to allocate memory\n");
-    if (HAS_ERROR(error, ERROR_BIT_FLAGS::BUFFER_HASH_FAIL)) printf("Wrong buffer hash\n");
-    if (HAS_ERROR(error, ERROR_BIT_FLAGS::STRUCT_HASH_FAIL)) printf("Wrong struct hash\n");
+    for(int i = 1; error >>= 1; i++) {
+        if (error & 1)
+            printf("\t[ERROR] %s\n", ERROR_DESCRIPTION[i]);
+    }
 }
 
 
@@ -295,6 +307,8 @@ static void print_binary(ErrorBits n) {
     }
 }
 
+
+#if (PROTECT_LEVEL & HASH_PROTECT)
 
 static ErrorBits check_struct_hash(Stack *stack) {
     CHECK(stack, return ERROR_BIT_FLAGS::INVALID_ARGUMENT);
@@ -334,3 +348,5 @@ static HashType gnu_hash(void *ptr, size_t size) {
 
     return hash;
 }
+
+#endif

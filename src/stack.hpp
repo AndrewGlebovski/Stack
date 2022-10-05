@@ -4,6 +4,7 @@
 
 #define CANARY_PROTECT 1
 #define HASH_PROTECT 2
+#define PROTECT_LEVEL 3
 
 
 #ifndef PROTECT_LEVEL
