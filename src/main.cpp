@@ -1,8 +1,11 @@
 #include <stdio.h>
 #include "stack.hpp"
+#include "logs.hpp"
 
 
 int main() {
+    open_log("log.txt");
+
     Stack stack = {};
 
     stack_constructor(&stack, 10);
@@ -22,6 +25,8 @@ int main() {
     stack.data[0] = 0;
 
     stack_destructor(&stack);
+
+    close_log();
 
     return 0;
 }

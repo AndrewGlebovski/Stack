@@ -117,12 +117,14 @@ ErrorBits stack_check(Stack *stack);
  * \brief Prints stack content
  * \param stack This stack will printed
  * \param error This error code will be printed
+ * \param stream File to dump in
 */
-void stack_dump(Stack *stack, ErrorBits error);
+void stack_dump(Stack *stack, ErrorBits error, FILE *stream);
 
 
 /**
  * \brief Translate bit error code to english
  * \param error Bit error code to print
+ * \param stream File to print errors in
 */
-void print_errors(ErrorBits error);
+void print_errors(ErrorBits error, FILE *stream);

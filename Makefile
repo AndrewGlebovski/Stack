@@ -18,7 +18,7 @@ all: run
 
 
 # Объединяет объекты в исполняемый файл
-run: $(BIN_DIR)/main.o $(BIN_DIR)/stack.o
+run: $(BIN_DIR)/main.o $(BIN_DIR)/stack.o $(BIN_DIR)/logs.o
 	$(COMPILER) $^ -o run.exe
 
 

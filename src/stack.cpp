@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "stack.hpp"
+#include "logs.hpp"
 
 
 const char *ERROR_DESCRIPTION[] = {
@@ -39,8 +40,10 @@ do { \
 */
 #define STACK_DUMP(stack, error) \
 do { \
-    printf("%s at %s(%d)\n", __PRETTY_FUNCTION__, __FILE__, __LINE__); \
-    stack_dump(stack, error); \
+    if (get_log_file()) { \
+        fprintf(get_log_file(), "%s at %s(%d)\n", __PRETTY_FUNCTION__, __FILE__, __LINE__); \
+        stack_dump(stack, error, get_log_file()); \
+    } \
 } while(0)
 
 
@@ -79,8 +82,9 @@ static ErrorBits stack_resize(Stack *stack, StackSize capacity);
 /**
  * \brief Recursive function to print each bit of the number
  * \param n This number will be printed
+ * \param stream File to print bin code in
 */
-static void print_binary(ErrorBits n);
+static void print_binary(ErrorBits n, FILE *stream);
 
 #if (PROTECT_LEVEL & HASH_PROTECT)
 
@@ -249,60 +253,63 @@ ErrorBits stack_check(Stack *stack) {
 }
 
 
-void stack_dump(Stack *stack, ErrorBits error) {
+void stack_dump(Stack *stack, ErrorBits error, FILE *stream) {
     CHECK(stack, return);
     
-    printf("\tStack[%p]:\n", stack);
+    fprintf(stream, "\tStack[%p]:\n", stack);
 
-    print_errors(error);
+    print_errors(error, stream);
 
-    printf("\tCapacity: %llu\n\tSize: %llu\n", stack -> capacity, stack -> size);
-    ON_HASH_PROTECT(printf("\tBuffer hash: %llu\n\tStruct hash: %llu\n", stack -> buffer_hash, stack -> struct_hash);)
-    printf("\tData[%p]", stack -> data);
+    fprintf(stream, "\tCapacity: %llu\n\tSize: %llu\n", stack -> capacity, stack -> size);
+
+    ON_HASH_PROTECT(fprintf(stream, "\tBuffer hash: %llu\n\tStruct hash: %llu\n", stack -> buffer_hash, stack -> struct_hash);)
+
+    fprintf(stream, "\tData[%p]", stack -> data);
     
     if (HAS_ERROR(error, ERROR_BIT_FLAGS::NULL_DATA) || HAS_ERROR(error, ERROR_BIT_FLAGS::INVALID_CAPACITY) 
-            || HAS_ERROR(error, ERROR_BIT_FLAGS::STRUCT_HASH_FAIL) || HAS_ERROR(error, ERROR_BIT_FLAGS::STRUCT_CANARY))
-        putchar('\n');
-    else {
-        printf(":\n");
+            || HAS_ERROR(error, ERROR_BIT_FLAGS::STRUCT_HASH_FAIL) || HAS_ERROR(error, ERROR_BIT_FLAGS::STRUCT_CANARY)) {
+        fputc('\n', stream);
+        return;
+    }
+    
+    fprintf(stream, ":\n");
 
-        for(StackSize i = 0; i < stack -> capacity; i++) {
-            printf("\t\t[%lld]", i); // object index
+    for(StackSize i = 0; i < stack -> capacity; i++) {
+        fprintf(stream, "\t\t[%lld]", i); // object index
 
-            printf(OBJECT_TO_STR, (stack -> data)[i]); // print value function (possible macros)
+        fprintf(stream, OBJECT_TO_STR, (stack -> data)[i]); // print value function (possible macros)
 
-            if ((stack -> data)[i] == POISON_VALUE) printf("(POISON VALUE)"); // poison value warning
+        if ((stack -> data)[i] == POISON_VALUE) fprintf(stream, "(POISON VALUE)"); // poison value warning
             
-            putchar('\n'); // new line
-        }
+        fputc('\n', stream); // new line
     }
 
-    putchar('\n');
+    fputc('\n', stream);
 }
 
 
-void print_errors(ErrorBits error) {
+void print_errors(ErrorBits error, FILE *stream) {
     if (error == ERROR_BIT_FLAGS::STACK_OK) {
-        printf("\tOk\n");
+        fprintf(stream, "\tOk\n");
         return;
     }
     else {
-        putchar('\t');
-        print_binary(error);
-        putchar('\n');
+        fputc('\t', stream);
+        print_binary(error, stream);
+        fputc('\n', stream);
     }
 
     for(int i = 1; error >>= 1; i++) {
         if (error & 1)
-            printf("\t[ERROR] %s\n", ERROR_DESCRIPTION[i]);
+            fprintf(stream, "\t[ERROR] %s\n", ERROR_DESCRIPTION[i]);
     }
 }
 
 
-static void print_binary(ErrorBits n) {
+static void print_binary(ErrorBits n, FILE *stream) {
     int k = 1ull << 15;
     while(k > 0) {
-        putchar(((n & k) > 0) + '0');
+        fputc(((n & k) > 0) + '0', stream);
         k = k >> 1;
     }
 }
