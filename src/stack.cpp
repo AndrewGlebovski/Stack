@@ -1,20 +1,19 @@
-#include <stdio.h>
 #include <stdlib.h>
 #include "stack.hpp"
 #include "logs.hpp"
 
 
 const char *ERROR_DESCRIPTION[] = {
+    "Stack has NULL data\n",
     "Invalid size\n",
     "Invalid capcity\n",
-    "Stack has NULL data\n",
-    "Unexpected normal value\n",
     "Unexpected poison value\n",
+    "Unexpected normal value\n",
+    "Invalid argument given to the function\n",
+    "Pop empty stack\n",
+    "Failed to allocate memory\n",
     "Wrong struct canary\n",
     "Wrong buffer canary\n",
-    "Pop empty stack\n",
-    "Invalid argument given to the function\n",
-    "Failed to allocate memory\n",
     "Wrong buffer hash\n",
     "Wrong struct hash\n",
 };
@@ -302,15 +301,16 @@ void print_errors(ErrorBits error, FILE *stream) {
         fputc('\n', stream);
     }
 
-    for(int i = 1; error >>= 1; i++) {
+    for(ErrorBits i = 0; i < 16; i++) {
         if (error & 1)
             fprintf(stream, "\t[ERROR] %s\n", ERROR_DESCRIPTION[i]);
+        error >>= 1;
     }
 }
 
 
 static void print_binary(ErrorBits n, FILE *stream) {
-    int k = 1ull << 15;
+    ErrorBits k = 1ull << 15;
     while(k > 0) {
         fputc(((n & k) > 0) + '0', stream);
         k = k >> 1;

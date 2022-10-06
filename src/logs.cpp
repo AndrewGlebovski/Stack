@@ -1,6 +1,15 @@
+/**
+ * \file
+ * \brief Log module header
+ * 
+ * Contains log_file pointer and its setter functions
+*/
+
+
 #include "logs.hpp"
 
 
+/// Log file
 FILE *log_file = nullptr;
 
 
@@ -33,4 +42,6 @@ int close_log(void) {
         printf("No log file to close!\n");
         return 1;
     }
+    
+    log_file = nullptr;
 }

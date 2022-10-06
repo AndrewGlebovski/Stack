@@ -47,6 +47,8 @@ int main() {
 
 
 ReturnCode test_normal(void *data) {
+    fprintf(get_log_file(), "\n~~~~~~~~~~~test_normal~~~~~~~~~~~~\n");
+
     Stack stack = {};
 
     stack_constructor(&stack, 10);
@@ -64,6 +66,8 @@ ReturnCode test_normal(void *data) {
 
 
 ReturnCode test_1001_push_and_pop(void *data) {
+    fprintf(get_log_file(), "\n~~~~~~test_1001_push_and_pop~~~~~~\n");
+
     Stack stack = {};
 
     stack_constructor(&stack, 10);
@@ -81,6 +85,8 @@ ReturnCode test_1001_push_and_pop(void *data) {
 
 
 ReturnCode test_struct_hash(void *data) {
+    fprintf(get_log_file(), "\n~~~~~~~~~test_struct_hash~~~~~~~~~\n");
+
     Stack stack = {};
 
     stack_constructor(&stack, 10);
@@ -88,13 +94,15 @@ ReturnCode test_struct_hash(void *data) {
     for(int i = 1; i <= 1001; i++)
         stack_push(&stack, i);
 
-    stack.size = 100000;
+    stack.size = (StackSize) 100000;
 
     return stack_destructor(&stack);
 }
 
 
 ReturnCode test_canary(void *data) {
+    fprintf(get_log_file(), "\n~~~~~~~~~~~~test_canary~~~~~~~~~~~\n");
+
     Stack stack = {};
 
     stack_constructor(&stack, 10);
@@ -102,7 +110,7 @@ ReturnCode test_canary(void *data) {
     for(int i = 1; i <= 1001; i++)
         stack_push(&stack, i);
 
-    stack.canary_begin = 100000;
+    stack.canary_begin = (CanaryType) 100000;
 
     return stack_destructor(&stack);
 }

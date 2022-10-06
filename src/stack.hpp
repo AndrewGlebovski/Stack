@@ -52,19 +52,19 @@ typedef struct {
 
 /// Error bit codes
 enum ERROR_BIT_FLAGS {
-    STACK_OK         =    0, ///< Stack is ok
-    NULL_DATA        =    1, ///< Stack data points to NULL
-    INVALID_SIZE     =    2, ///< Size is larger than capacity or negative
-    INVALID_CAPACITY =    4, ///< Capacity is larger than type's maximum or negative
-    UNEXP_POISON_VAL =    8, ///< Unexpected poison value before size
-    UNEXP_NORMAL_VAL =   16, ///< Unexpected normal value after size
-    INVALID_ARGUMENT =   32, ///< Invalid argument given to the function
-    EMPTY_STACK      =   64, ///< No elements to pop
-    ALLOCATE_FAIL    =  128, ///< Memory allocate return NULL
-    STRUCT_CANARY    =  256, ///< Stack canary value was overwritten
-    BUFFER_CANARY    =  512, ///< Buffer canary value was overwritten
-    BUFFER_HASH_FAIL = 1024, ///< Wrong buffer hash sum
-    STRUCT_HASH_FAIL = 2048, ///< Wrong stack hash sum
+    STACK_OK         =     0ull, ///< Stack is ok
+    NULL_DATA        =     1ull, ///< Stack data points to NULL
+    INVALID_SIZE     =  1ull<<1, ///< Size is larger than capacity or negative
+    INVALID_CAPACITY =  1ull<<2, ///< Capacity is larger than type's maximum or negative
+    UNEXP_POISON_VAL =  1ull<<3, ///< Unexpected poison value before size
+    UNEXP_NORMAL_VAL =  1ull<<4, ///< Unexpected normal value after size
+    INVALID_ARGUMENT =  1ull<<5, ///< Invalid argument given to the function
+    EMPTY_STACK      =  1ull<<6, ///< No elements to pop
+    ALLOCATE_FAIL    =  1ull<<7, ///< Memory allocate return NULL
+    STRUCT_CANARY    =  1ull<<8, ///< Stack canary value was overwritten
+    BUFFER_CANARY    =  1ull<<9, ///< Buffer canary value was overwritten
+    BUFFER_HASH_FAIL = 1ull<<10, ///< Wrong buffer hash sum
+    STRUCT_HASH_FAIL = 1ull<<11, ///< Wrong stack hash sum
 };
 
 
