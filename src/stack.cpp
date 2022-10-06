@@ -116,6 +116,9 @@ static HashType gnu_hash(void *ptr, size_t size);
 
 
 ErrorBits stack_constructor(Stack *stack, StackSize capacity) {
+    CHECK(stack, return ERROR_BIT_FLAGS::INVALID_ARGUMENT);
+    CHECK(capacity > 0, return ERROR_BIT_FLAGS::INVALID_ARGUMENT);
+
     char *true_pointer = (char *) calloc(capacity * sizeof(Object) + 2 * sizeof(CanaryType), 1);
     CHECK(true_pointer, return ERROR_BIT_FLAGS::ALLOCATE_FAIL);
 
@@ -141,7 +144,7 @@ ErrorBits stack_constructor(Stack *stack, StackSize capacity) {
 
 static ErrorBits stack_resize(Stack *stack, StackSize capacity) {
     CHECK(stack, return ERROR_BIT_FLAGS::INVALID_ARGUMENT);
-    CHECK(capacity >= 10, return ERROR_BIT_FLAGS::INVALID_ARGUMENT);
+    CHECK(capacity > 0, return ERROR_BIT_FLAGS::INVALID_ARGUMENT);
 
     RETURN_ON_ERROR(stack);
 
@@ -195,7 +198,7 @@ ErrorBits stack_pop(Stack *stack, Object *object) {
 
     ON_HASH_PROTECT(set_hash(stack);)
 
-    if (((stack -> size) < ((stack -> capacity) / (StackSize)(2 * STACK_FACTOR))) && stack -> capacity > 10)
+    if (((stack -> size) < ((stack -> capacity) / (StackSize)(2 * STACK_FACTOR))) && stack -> capacity > 1)
         return stack_resize(stack, (stack -> capacity) / (StackSize)(STACK_FACTOR));
 
     return ERROR_BIT_FLAGS::STACK_OK;

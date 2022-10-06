@@ -1,0 +1,20 @@
+ErrorBits stack_destructor(Stack*) at src/stack.cpp(209)
+	Stack[000000e98d3ffce0]:
+	0000100000000000
+	[ERROR] Wrong struct hash
+
+	Capacity: 1280
+	Size: 100000
+	Buffer hash: 3587247252411271712
+	Struct hash: 8486643839543012294
+	Data[000002d1f41f60c8]
+ErrorBits stack_destructor(Stack*) at src/stack.cpp(209)
+	Stack[000000e98d3ffce0]:
+	0000000100000000
+	[ERROR] Invalid argument given to the function
+
+	Capacity: 1280
+	Size: 1001
+	Buffer hash: 3587247252411271712
+	Struct hash: 11353859440057150053
+	Data[000002d1f41f7f08]

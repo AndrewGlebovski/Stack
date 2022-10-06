@@ -18,10 +18,10 @@ all: run
 
 
 # Объединяет объекты в исполняемый файл
-run: $(BIN_DIR)/main.o $(BIN_DIR)/stack.o $(BIN_DIR)/logs.o
+run: $(BIN_DIR)/main.o $(BIN_DIR)/stack.o $(BIN_DIR)/logs.o $(BIN_DIR)/test.o
 	$(COMPILER) $^ -o run.exe
 
 
 # Компилирует все файлы в папке src в папку bin
-$(BIN_DIR)/%.o: $(SRC_DIR)/%.cpp $(SRC_DIR)/stack.hpp
+$(BIN_DIR)/%.o: $(SRC_DIR)/%.cpp $(SRC_DIR)/stack.hpp $(SRC_DIR)/test.hpp $(SRC_DIR)/logs.hpp
 	$(COMPILER) $(FLAGS) -c $< -o $@
