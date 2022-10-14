@@ -53,7 +53,7 @@ typedef struct {
 /// Error bit codes
 enum ERROR_BIT_FLAGS {
     STACK_OK         =     0ull, ///< Stack is ok
-    NULL_DATA        =     1ull, ///< Stack data points to NULL
+    INVALID_DATA     =     1ull, ///< Invalid stack data points
     INVALID_SIZE     =  1ull<<1, ///< Size is larger than capacity or negative
     INVALID_CAPACITY =  1ull<<2, ///< Capacity is larger than type's maximum or negative
     UNEXP_POISON_VAL =  1ull<<3, ///< Unexpected poison value before size
@@ -65,6 +65,7 @@ enum ERROR_BIT_FLAGS {
     BUFFER_CANARY    =  1ull<<9, ///< Buffer canary value was overwritten
     BUFFER_HASH_FAIL = 1ull<<10, ///< Wrong buffer hash sum
     STRUCT_HASH_FAIL = 1ull<<11, ///< Wrong stack hash sum
+    INVALID_POINTER  = 1ull<<12, ///< Invalid read pointer
 };
 
 

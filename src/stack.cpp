@@ -4,7 +4,7 @@
 
 
 const char *ERROR_DESCRIPTION[] = {
-    "Stack has NULL data\n",
+    "Invalid data pointer\n",
     "Invalid size\n",
     "Invalid capcity\n",
     "Unexpected poison value\n",
@@ -16,6 +16,7 @@ const char *ERROR_DESCRIPTION[] = {
     "Wrong buffer canary\n",
     "Wrong buffer hash\n",
     "Wrong struct hash\n",
+    "Invalid read pointer\n",
 };
 
 
@@ -85,6 +86,15 @@ static ErrorBits stack_resize(Stack *stack, StackSize capacity);
 */
 static void print_binary(ErrorBits n, FILE *stream);
 
+
+/**
+ * \brief Checks bad read pointer
+ * \param ptr Pointer to check
+ * \param size Pointer size
+ * \return Zero value means error
+*/
+static int right_pointer(void *ptr, size_t size);
+
 #if (PROTECT_LEVEL & HASH_PROTECT)
 
 /**
@@ -115,7 +125,7 @@ static HashType gnu_hash(void *ptr, size_t size);
 
 
 ErrorBits stack_constructor(Stack *stack, StackSize capacity) {
-    CHECK(stack, return ERROR_BIT_FLAGS::INVALID_ARGUMENT);
+    CHECK(right_pointer(stack, sizeof(Stack)), return ERROR_BIT_FLAGS::INVALID_POINTER);
     CHECK(capacity > 0, return ERROR_BIT_FLAGS::INVALID_ARGUMENT);
 
     #if (PROTECT_LEVEL & CANARY_PROTECT)
@@ -147,7 +157,7 @@ ErrorBits stack_constructor(Stack *stack, StackSize capacity) {
 
 
 static ErrorBits stack_resize(Stack *stack, StackSize capacity) {
-    CHECK(stack, return ERROR_BIT_FLAGS::INVALID_ARGUMENT);
+    CHECK(right_pointer(stack, sizeof(Stack)), return ERROR_BIT_FLAGS::INVALID_POINTER);
     CHECK(capacity > 0, return ERROR_BIT_FLAGS::INVALID_ARGUMENT);
 
     RETURN_ON_ERROR(stack);
@@ -177,7 +187,7 @@ static ErrorBits stack_resize(Stack *stack, StackSize capacity) {
 
 
 ErrorBits stack_push(Stack *stack, Object object) {
-    CHECK(stack, return ERROR_BIT_FLAGS::INVALID_ARGUMENT);
+    CHECK(right_pointer(stack, sizeof(Stack)), return ERROR_BIT_FLAGS::INVALID_POINTER);
 
     RETURN_ON_ERROR(stack);
 
@@ -195,7 +205,7 @@ ErrorBits stack_push(Stack *stack, Object object) {
 
 
 ErrorBits stack_pop(Stack *stack, Object *object) {
-    CHECK(stack, return ERROR_BIT_FLAGS::INVALID_ARGUMENT);
+    CHECK(right_pointer(stack, sizeof(Stack)), return ERROR_BIT_FLAGS::INVALID_POINTER);
     CHECK(object, return ERROR_BIT_FLAGS::INVALID_ARGUMENT);
 
     RETURN_ON_ERROR(stack);
@@ -237,15 +247,15 @@ ErrorBits stack_destructor(Stack *stack) {
 ErrorBits stack_check(Stack *stack) {
     ErrorBits error = ERROR_BIT_FLAGS::STACK_OK;
 
-    CHECK(stack, return ERROR_BIT_FLAGS::INVALID_ARGUMENT);
+    CHECK(right_pointer(stack, sizeof(Stack)), return ERROR_BIT_FLAGS::INVALID_POINTER);
 
     ON_CANARY_PROTECT(CHECK(stack -> canary_begin == (CanaryType)(stack) && stack -> canary_end == (CanaryType)(stack), return ERROR_BIT_FLAGS::STRUCT_CANARY);)
 
     ON_HASH_PROTECT(CHECK(!check_struct_hash(stack), return ERROR_BIT_FLAGS::STRUCT_HASH_FAIL);)
 
-    ON_CANARY_PROTECT(char *true_pointer = ((char *)(stack -> data)) - sizeof(CanaryType);) // pointer to the real buffer start
+    CHECK(right_pointer(stack -> data, stack -> capacity * sizeof(Object)), error += ERROR_BIT_FLAGS::INVALID_DATA; return error);
 
-    CHECK(stack -> data, error += ERROR_BIT_FLAGS::NULL_DATA; return error);
+    ON_CANARY_PROTECT(char *true_pointer = ((char *)(stack -> data)) - sizeof(CanaryType);) // pointer to the real buffer start
 
     ON_CANARY_PROTECT(CHECK(*(CanaryType *)(true_pointer) == (CanaryType)(stack),                                                           return ERROR_BIT_FLAGS::BUFFER_CANARY);)
     ON_CANARY_PROTECT(CHECK(*(CanaryType *)(true_pointer + sizeof(CanaryType) + stack -> capacity * sizeof(Object)) == (CanaryType)(stack), return ERROR_BIT_FLAGS::BUFFER_CANARY);)
@@ -283,7 +293,7 @@ void stack_dump(Stack *stack, ErrorBits error, FILE *stream) {
 
     fprintf(stream, "\tData[%p]", stack -> data);
     
-    if (HAS_ERROR(error, ERROR_BIT_FLAGS::NULL_DATA) || HAS_ERROR(error, ERROR_BIT_FLAGS::INVALID_CAPACITY) 
+    if (HAS_ERROR(error, ERROR_BIT_FLAGS::INVALID_DATA) || HAS_ERROR(error, ERROR_BIT_FLAGS::INVALID_CAPACITY) 
             || HAS_ERROR(error, ERROR_BIT_FLAGS::STRUCT_HASH_FAIL) || HAS_ERROR(error, ERROR_BIT_FLAGS::STRUCT_CANARY)) {
         fputc('\n', stream);
         return;
@@ -336,7 +346,7 @@ static void print_binary(ErrorBits n, FILE *stream) {
 #if (PROTECT_LEVEL & HASH_PROTECT)
 
 static ErrorBits check_struct_hash(Stack *stack) {
-    CHECK(stack, return ERROR_BIT_FLAGS::INVALID_ARGUMENT);
+    CHECK(right_pointer(stack, sizeof(Stack)), return ERROR_BIT_FLAGS::INVALID_POINTER);
 
     ErrorBits error = ERROR_BIT_FLAGS::STACK_OK;
 
@@ -375,3 +385,10 @@ static HashType gnu_hash(void *ptr, size_t size) {
 }
 
 #endif
+
+static int right_pointer(void *ptr, size_t size) {
+    if (!ptr) return 0;
+
+    return 1;
+}
+
