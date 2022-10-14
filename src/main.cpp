@@ -22,12 +22,20 @@ Test tests[] = {
     },
     {
         &test_struct_hash,
-        ERROR_BIT_FLAGS::STRUCT_HASH_FAIL,
+        #if (PROTECT_LEVEL & HASH_PROTECT)
+            ERROR_BIT_FLAGS::STRUCT_HASH_FAIL,
+        #else
+            ERROR_BIT_FLAGS::STACK_OK,
+        #endif
         nullptr
     },
     {
         &test_canary,
-        ERROR_BIT_FLAGS::STRUCT_CANARY,
+        #if (PROTECT_LEVEL & CANARY_PROTECT)
+            ERROR_BIT_FLAGS::STRUCT_CANARY,
+        #else
+            ERROR_BIT_FLAGS::STACK_OK,
+        #endif
         nullptr
     }
 };
@@ -94,7 +102,7 @@ ReturnCode test_struct_hash(void *data) {
     for(int i = 1; i <= 1001; i++)
         stack_push(&stack, i);
 
-    stack.size = (StackSize) 100000;
+    ON_HASH_PROTECT(stack.size = (StackSize) 100000;)
 
     return stack_destructor(&stack);
 }
@@ -110,7 +118,7 @@ ReturnCode test_canary(void *data) {
     for(int i = 1; i <= 1001; i++)
         stack_push(&stack, i);
 
-    stack.canary_begin = (CanaryType) 100000;
+    ON_CANARY_PROTECT(stack.canary_begin = (CanaryType) 100000;)
 
     return stack_destructor(&stack);
 }
