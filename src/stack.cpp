@@ -65,18 +65,12 @@ do { \
 #define HAS_ERROR(bitflag, error) (bitflag & error)
 
 
-/// Multiplier for stack size
-const float STACK_FACTOR = 2.0;
-
-
 /**
  * \brief Resizes stack
- * \param stack This stack will be resized
- * \param capacity New stack capacity
- * \note Capacity can't be less than 10
+ * \param stack This stack will be resized automaticaly
  * \return Error code (see #ERROR_BIT_FLAGS)
 */
-static ErrorBits stack_resize(Stack *stack, StackSize capacity);
+static ErrorBits stack_resize(Stack *stack);
 
 
 /**
@@ -152,22 +146,32 @@ ErrorBits stack_constructor(Stack *stack, StackSize capacity) {
 
     ON_HASH_PROTECT(set_hash(stack);)
 
+    RETURN_ON_ERROR(stack);
+
     return ERROR_BIT_FLAGS::STACK_OK;
 }
 
 
-static ErrorBits stack_resize(Stack *stack, StackSize capacity) {
+static ErrorBits stack_resize(Stack *stack) {
     CHECK(right_pointer(stack, sizeof(Stack)), return ERROR_BIT_FLAGS::INVALID_POINTER);
-    CHECK(capacity > 0, return ERROR_BIT_FLAGS::INVALID_ARGUMENT);
 
     RETURN_ON_ERROR(stack);
 
+    if (4 * stack -> size < stack -> capacity)
+        stack -> capacity /= 2;
+    
+    else if (stack -> size == stack -> capacity)
+        stack -> capacity *= 2;
+
+    else 
+        return ERROR_BIT_FLAGS::STACK_OK;
+
     #if (PROTECT_LEVEL & CANARY_PROTECT)
         char *true_pointer = ((char *)(stack -> data)) - sizeof(CanaryType);
-        true_pointer = (char *) realloc(true_pointer, capacity * sizeof(Object) + 2 * sizeof(CanaryType));
+        true_pointer = (char *) realloc(true_pointer, stack -> capacity * sizeof(Object) + 2 * sizeof(CanaryType));
         CHECK(true_pointer, return ERROR_BIT_FLAGS::ALLOCATE_FAIL);
 
-        *(CanaryType *)(true_pointer + sizeof(CanaryType) + capacity * sizeof(Object)) = (CanaryType)(stack);
+        *(CanaryType *)(true_pointer + sizeof(CanaryType) + stack -> capacity * sizeof(Object)) = (CanaryType)(stack);
 
         stack -> data = (Object *)(true_pointer + sizeof(CanaryType));
     #else
@@ -175,12 +179,12 @@ static ErrorBits stack_resize(Stack *stack, StackSize capacity) {
         CHECK(stack -> data, return ERROR_BIT_FLAGS::ALLOCATE_FAIL);
     #endif
 
-    for(StackSize i = stack -> capacity; i < capacity ; i++)
+    for(StackSize i = stack -> size; i < stack -> capacity ; i++)
         (stack -> data)[i] = POISON_VALUE;
-    
-    stack -> capacity = capacity;
 
     ON_HASH_PROTECT(set_hash(stack);)
+
+    RETURN_ON_ERROR(stack);
 
     return ERROR_BIT_FLAGS::STACK_OK;
 }
@@ -191,16 +195,13 @@ ErrorBits stack_push(Stack *stack, Object object) {
 
     RETURN_ON_ERROR(stack);
 
-    if ((stack -> size) + 1 > stack -> capacity) {
-        ErrorBits error = stack_resize(stack, (StackSize) ((float)(stack -> capacity) * STACK_FACTOR));
-        CHECK(!error, return error);
-    }
-
     (stack -> data)[(stack -> size)++] = object;
 
     ON_HASH_PROTECT(set_hash(stack);)
 
-    return ERROR_BIT_FLAGS::STACK_OK;
+    RETURN_ON_ERROR(stack);
+
+    return stack_resize(stack);
 }
 
 
@@ -217,10 +218,9 @@ ErrorBits stack_pop(Stack *stack, Object *object) {
 
     ON_HASH_PROTECT(set_hash(stack);)
 
-    if (((stack -> size) < ((stack -> capacity) / (StackSize)(2 * STACK_FACTOR))) && stack -> capacity > 1)
-        return stack_resize(stack, (stack -> capacity) / (StackSize)(STACK_FACTOR));
+    RETURN_ON_ERROR(stack);
 
-    return ERROR_BIT_FLAGS::STACK_OK;
+    return stack_resize(stack);
 }
 
 
