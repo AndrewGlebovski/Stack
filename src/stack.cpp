@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <memoryapi.h>
 #include "stack.hpp"
 #include "logs.hpp"
 
@@ -153,8 +154,6 @@ ErrorBits stack_constructor(Stack *stack, StackSize capacity) {
 
 
 static ErrorBits stack_resize(Stack *stack) {
-    CHECK(right_pointer(stack, sizeof(Stack)), return ERROR_BIT_FLAGS::INVALID_POINTER);
-
     RETURN_ON_ERROR(stack);
 
     if (4 * stack -> size < stack -> capacity)
@@ -191,8 +190,6 @@ static ErrorBits stack_resize(Stack *stack) {
 
 
 ErrorBits stack_push(Stack *stack, Object object) {
-    CHECK(right_pointer(stack, sizeof(Stack)), return ERROR_BIT_FLAGS::INVALID_POINTER);
-
     RETURN_ON_ERROR(stack);
 
     (stack -> data)[(stack -> size)++] = object;
@@ -206,7 +203,6 @@ ErrorBits stack_push(Stack *stack, Object object) {
 
 
 ErrorBits stack_pop(Stack *stack, Object *object) {
-    CHECK(right_pointer(stack, sizeof(Stack)), return ERROR_BIT_FLAGS::INVALID_POINTER);
     CHECK(object, return ERROR_BIT_FLAGS::INVALID_ARGUMENT);
 
     RETURN_ON_ERROR(stack);
@@ -281,7 +277,7 @@ ErrorBits stack_check(Stack *stack) {
 
 
 void stack_dump(Stack *stack, ErrorBits error, FILE *stream) {
-    CHECK(stack, return);
+    CHECK(right_pointer(stack, sizeof(stack)), return);
     
     fprintf(stream, "\tStack[%p]:\n", stack);
 
@@ -389,6 +385,16 @@ static HashType gnu_hash(void *ptr, size_t size) {
 static int right_pointer(void *ptr, size_t size) {
     if (!ptr) return 0;
 
-    return 1;
+    MEMORY_BASIC_INFORMATION info = {};
+
+    if (VirtualQuery(ptr, &info, sizeof(info))) {
+        if (info.Protect & (PAGE_GUARD | PAGE_NOACCESS)) return 0;
+
+        DWORD mask = PAGE_READWRITE;
+
+        return info.Protect & mask;
+    }
+
+    return 0;
 }
 
