@@ -1,5 +1,5 @@
 #include <stdlib.h>
-#include <memoryapi.h>
+#include <windows.h>
 #include "stack.hpp"
 #include "logs.hpp"
 
@@ -285,7 +285,7 @@ void stack_dump(Stack *stack, ErrorBits error, FILE *stream) {
 
     fprintf(stream, "\tCapacity: %llu\n\tSize: %llu\n", stack -> capacity, stack -> size);
 
-    ON_HASH_PROTECT(fprintf(stream, "\tBuffer hash: %llu\n\tStruct hash: %llu\n", stack -> buffer_hash, stack -> struct_hash);)
+    ON_HASH_PROTECT(fprintf(stream, "\tBuffer hash: %0llx\n\tStruct hash: %0llx\n", stack -> buffer_hash, stack -> struct_hash);)
 
     fprintf(stream, "\tData[%p]", stack -> data);
     
@@ -297,15 +297,20 @@ void stack_dump(Stack *stack, ErrorBits error, FILE *stream) {
     
     fprintf(stream, ":\n");
 
+    char *true_pointer = ((char *)(stack -> data)) - sizeof(CanaryType);
+    fprintf(stream, "\t\tCanary: %0llx\n", *(CanaryType *) true_pointer);
+
     for(StackSize i = 0; i < stack -> capacity; i++) {
-        fprintf(stream, "\t\t[%lld]", i); // object index
+        fprintf(stream, "\t\t[%03lld] ", i); // object index
 
         fprintf(stream, OBJECT_TO_STR, (stack -> data)[i]); // print value function (possible macros)
 
-        if ((stack -> data)[i] == POISON_VALUE) fprintf(stream, "(POISON VALUE)"); // poison value warning
+        if ((stack -> data)[i] == POISON_VALUE) fprintf(stream, " (POISON VALUE)"); // poison value warning
             
         fputc('\n', stream); // new line
     }
+
+    fprintf(stream, "\t\tCanary: %0llx\n", *(CanaryType *) (true_pointer + sizeof(CanaryType) + stack -> capacity * sizeof(Object)));
 
     fputc('\n', stream);
 }
